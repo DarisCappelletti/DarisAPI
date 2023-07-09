@@ -16,88 +16,6 @@ namespace PortFolio.BLL.Helpers
 {
     public static class ComuniItalianiHelper
     {
-        //public static void RicercaComuniIstat()
-        //{
-        //    // Verifico se sono stati richiesti i dettagli
-        //    //string richiestaDettagliIndicePa = Request.QueryString["dettagliIndicePa"];
-
-        //    // Inizializzo la lista
-        //    var list = new List<DettagliIstat>();
-
-        //    // Imposto lo stream
-        //    Stream streamXls = null;
-
-        //    using (var wc = new WebClient())
-        //    {
-        //        // Estrapolo i dati dall'url
-        //        streamXls = wc.OpenRead("https://www.istat.it/storage/codici-unita-amministrative/Elenco-comuni-italiani.xlsx");
-        //    }
-
-        //    using (var mss = new MemoryStream())
-        //    {
-        //        streamXls.CopyTo(mss);
-        //        mss.Position = 0;
-
-        //        //1. Reading from a binary Excel file ('97-2003 format; *.xls)
-        //        //IExcelDataReader excelReader = ExcelReaderFactory.CreateReader(mss);
-
-        //        //2. Reading from a OpenXml Excel file (2007 format; *.xlsx)
-        //        IExcelDataReader excelReader = ExcelReaderFactory.CreateOpenXmlReader(mss);
-
-        //        var i = 0;
-
-        //        //5. Data Reader methods
-        //        while (excelReader.Read())
-        //        {
-        //            if (i != 0)
-        //            {
-        //                // Imposto l'oggetto
-        //                var obj = creoOggettoComune(excelReader);
-
-        //                // Scarico i dettagli da indicePA
-        //                //var dettagliEnte = 
-        //                //    richiestaDettagliIndicePa == "true" 
-        //                //    ? IstatHelper.RicercaDettagliEnte(obj.DenominazioneItaliana) 
-        //                //    : null;
-
-        //                //obj.DettagliIndicePA = dettagliEnte;
-
-        //                list.Add(obj);
-        //            }
-
-        //            i++;
-        //        }
-
-        //        excelReader.Close();
-
-        //        // Serializzo la lista
-        //        int maxJsonLength = 100000; // Imposta il valore massimo desiderato
-
-        //        JsonSerializerSettings settings = new JsonSerializerSettings
-        //        {
-        //            StringEscapeHandling = StringEscapeHandling.EscapeHtml,
-        //            MaxDepth = maxJsonLength
-        //        };
-
-        //        string json = JsonConvert.SerializeObject(list, settings);
-
-        //        //BinaryFormatter bf = new BinaryFormatter();
-        //        //MemoryStream ms = new MemoryStream();
-        //        //bf.Serialize(ms, json);
-
-        //        // Preparo il file
-        //        string FileName = "ComuniItaliani_" + DateTime.Now + ".json";
-        //        HttpResponse response = HttpContext.Current.Response;
-        //        response.Clear();
-        //        response.Charset = "";
-        //        response.ContentType = "application/json";
-        //        response.ContentEncoding = Encoding.UTF8;
-        //        response.AddHeader("Content-Disposition", "attachment;filename=" + FileName);
-        //        response.Write(json);
-        //        response.End();
-        //    }
-        //}
-
         public static string chiamataMultiPart(string api, NameValueCollection outgoingQueryString)
         {
             string boundary = "---------------------------" + DateTime.Now.Ticks.ToString("x");
@@ -182,9 +100,11 @@ namespace PortFolio.BLL.Helpers
         }
 
         public static List<Comune> RicercaComuniIstat(
+            string auth_indicePA = null,
             string comune = null,
             bool datiIndicePA = false,
-            bool datiWikiData = false)
+            bool datiWikiData = false
+        )
         {
             // Inizializzo la lista
             var list = new List<Comune>();
@@ -246,7 +166,7 @@ namespace PortFolio.BLL.Helpers
                         if (datiIndicePA)
                         {
                             // Scarico i dettagli da indicePA
-                            var dettagliEnte = RicercaEnteIndicePA(com.DettagliIstat.DenominazioneItaliana);
+                            var dettagliEnte = RicercaEnteIndicePA(auth_indicePA, com.DettagliIstat.DenominazioneItaliana);
 
                             com.DettagliIndicePA = dettagliEnte;
                         }
@@ -272,7 +192,7 @@ namespace PortFolio.BLL.Helpers
         }
 
         // Ricerca del comune su IndicePA
-        public static DettagliIndicePA RicercaEnteIndicePA(string nomeEnte)
+        public static DettagliIndicePA RicercaEnteIndicePA(string auth_indicePA, string nomeEnte)
         {
             // If ad hoc per il comune di "Front Canavese"
             if (nomeEnte.ToLower() == "front") { nomeEnte = "front canavese"; }
@@ -290,7 +210,8 @@ namespace PortFolio.BLL.Helpers
             string api = "https://www.indicepa.gov.it:443/public-ws/WS16_DES_AMM.php";
 
             NameValueCollection outgoingQueryString = HttpUtility.ParseQueryString(String.Empty);
-            outgoingQueryString.Add("AUTH_ID", System.Configuration.ConfigurationManager.AppSettings["indicePa.authID"]);
+
+            outgoingQueryString.Add("AUTH_ID", auth_indicePA);
             outgoingQueryString.Add("DESCR", nomeEntePerChiamataGET);
 
             var risultato = ComuniItalianiHelper.chiamataMultiPart(api, outgoingQueryString);
@@ -306,7 +227,7 @@ namespace PortFolio.BLL.Helpers
                 ente.data.Any(x => x.des_amm.ToLower().Contains("comune")))
             {
                 // Esiste soltanto un ente ed è il comune
-                var dettagliEnte = RicercaDettagliEnteIndicePA(ente.data.SingleOrDefault().cod_amm);
+                var dettagliEnte = RicercaDettagliEnteIndicePA(auth_indicePA, ente.data.SingleOrDefault().cod_amm);
 
                 return dettagliEnte;
             }
@@ -319,7 +240,7 @@ namespace PortFolio.BLL.Helpers
 
                 if (comune != null)
                 {
-                    var dettagliEnte = RicercaDettagliEnteIndicePA(comune.cod_amm);
+                    var dettagliEnte = RicercaDettagliEnteIndicePA(auth_indicePA, comune.cod_amm);
                     return dettagliEnte;
                 }
                 else
@@ -335,12 +256,12 @@ namespace PortFolio.BLL.Helpers
         }
 
         // Ricerca dei dettagli del comune su IndicePA
-        public static DettagliIndicePA RicercaDettagliEnteIndicePA(string cod_amm)
+        public static DettagliIndicePA RicercaDettagliEnteIndicePA(string auth_indicePA, string cod_amm)
         {
             string api = "https://www.indicepa.gov.it:443/public-ws/WS05_AMM.php";
 
             NameValueCollection outgoingQueryString = HttpUtility.ParseQueryString(String.Empty);
-            outgoingQueryString.Add("AUTH_ID", System.Configuration.ConfigurationManager.AppSettings["indicePa.authID"]);
+            outgoingQueryString.Add("AUTH_ID", auth_indicePA);
             outgoingQueryString.Add("COD_AMM", cod_amm);
 
             var risultato = ComuniItalianiHelper.chiamataMultiPart(api, outgoingQueryString);

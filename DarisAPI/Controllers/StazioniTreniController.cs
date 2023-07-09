@@ -9,6 +9,13 @@ namespace DarisAPI.Controllers
     [Route("[controller]")]
     public class StazioniTreniController : ControllerBase
     {
+        private readonly IConfiguration _configuration;
+
+        public StazioniTreniController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         [HttpGet(Name = "GetStazioni")]
         public List<Stazione> Get(string nome)
         {
